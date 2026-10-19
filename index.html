@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五表一书生成器 - 员工负荷表</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: scale(1.02);
+        }
+        .upload-area .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .upload-area h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .upload-area p {
+            color: #666;
+            font-size: 14px;
+        }
+        #fileInput { display: none; }
+        
+        .options {
+            margin-top: 24px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+        .options h4 {
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 24px;
+            padding: 20px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success { display: block; }
+        .result.error {
+            background: #ffebee;
+        }
+        .result h4 {
+            color: #2e7d32;
+            margin-bottom: 8px;
+        }
+        .result.error h4 {
+            color: #c62828;
+        }
+        .result .file-info {
+            font-size: 14px;
+            color: #555;
+        }
+        .result .download-btn {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: #2e7d32;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .preview {
+            margin-top: 24px;
+            display: none;
+        }
+        .preview.show { display: block; }
+        .preview h4 {
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            overflow-x: auto;
+            display: block;
+        }
+        .preview-table table {
+            width: 100%;
+            min-width: 600px;
+        }
+        .preview-table th, .preview-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .preview-table th {
+            background: #667eea;
+            color: white;
+        }
+        .preview-table tr:nth-child(even) {
+            background: #f8f9ff;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 员工负荷表生成器</h1>
+            <p>上传作业指导书Excel，自动生成标准格式的员工负荷表</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="icon">📁</div>
+                <h3>点击或拖拽上传作业指导书</h3>
+                <p>支持 .xlsx 格式，每个Sheet代表一个工位</p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls">
+            </div>
+            
+            <div class="options">
+                <h4>⚙️ 配置信息（可选，自动识别）</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>车间名称</label>
+                        <input type="text" id="workshop" value="地刷车间">
+                    </div>
+                    <div class="form-group">
+                        <label>线体名称</label>
+                        <input type="text" id="lineName" value="地刷充电座线">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>产品型号</label>
+                        <input type="text" id="productModel" placeholder="自动识别">
+                    </div>
+                    <div class="form-group">
+                        <label>编制人</label>
+                        <input type="text" id="author" value="邓豪">
+                    </div>
+                    <div class="form-group">
+                        <label>目标节拍(秒)</label>
+                        <input type="number" id="taktTime" value="33">
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn" id="generateBtn" disabled>🚀 生成员工负荷表</button>
+            
+            <div class="result" id="result">
+                <h4 id="resultTitle">✅ 生成成功!</h4>
+                <div class="file-info" id="resultInfo"></div>
+                <a class="download-btn" id="downloadLink" href="#" download>📥 下载员工负荷表</a>
+            </div>
+            
+            <div class="preview" id="preview">
+                <h4>📋 数据预览</h4>
+                <div class="preview-table" id="previewTable"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            五表一书生成器 v1.0 | 部品分厂
+        </div>
+    </div>
+
+    <script>
+        let uploadedFile = null;
+        let parsedData = null;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const result = document.getElementById('result');
+        const preview = document.getElementById('preview');
+        
+        // 点击上传
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+        
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+        
+        function handleFile(file) {
+            if (!file.name.match(/\.xlsx?$/i)) {
+                showError('请上传Excel文件(.xlsx格式)');
+                return;
+            }
+            
+            uploadedFile = file;
+            uploadArea.innerHTML = `
+                <div class="icon">✅</div>
+                <h3>${file.name}</h3>
+                <p>文件大小: ${(file.size / 1024).toFixed(1)} KB</p>
+                <p style="margin-top:8px;color:#667eea">点击重新选择</p>
+            `;
+            
+            // 解析文件
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    parsedData = parseWorkInstruction(workbook);
+                    
+                    if (parsedData.stations.length > 0) {
+                        generateBtn.disabled = false;
+                        showPreview(parsedData);
+                        
+                        // 自动填充产品型号
+                        if (parsedData.productModel && !document.getElementById('productModel').value) {
+                            document.getElementById('productModel').value = parsedData.productModel;
+                        }
+                    } else {
+                        showError('未能识别到工位数据，请检查文件格式');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showError('文件解析失败: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function parseWorkInstruction(workbook) {
+            const stations = [];
+            let productModel = '';
+            
+            workbook.SheetNames.forEach((sheetName, index) => {
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                
+                if (jsonData.length < 10) return;
+                
+                // 提取TT (Row 2, Col 15)
+                let tt = 33;
+                if (jsonData[2] && jsonData[2][15]) {
+                    tt = parseInt(jsonData[2][15]) || 33;
+                }
+                
+                // 提取CT (Row 4, Col 15)
+                let ct = null;
+                if (jsonData[4] && jsonData[4][15]) {
+                    ct = parseInt(jsonData[4][15]) || null;
+                }
+                
+                // 提取标准手持数 (Row 4, Col 13)
+                let stdHandheld = 1;
+                if (jsonData[4] && jsonData[4][13]) {
+                    stdHandheld = parseInt(jsonData[4][13]) || 1;
+                }
+                
+                // 提取工位名称 (Row 2, Col 3)
+                let stationName = '';
+                if (jsonData[2] && jsonData[2][3]) {
+                    stationName = String(jsonData[2][3]);
+                }
+                
+                // 自动识别产品型号
+                if (!productModel && stationName) {
+                    const match = stationName.match(/^(AT\d+\w*)/);
+                    if (match) productModel = match[1];
+                }
+                
+                // 提取各步骤数据 (Row 7-12)
+                const steps = [];
+                for (let row = 7; row <= 12; row++) {
+                    if (jsonData[row]) {
+                        const stepName = jsonData[row][2] ? String(jsonData[row][2]).trim() : '';
+                        const stepTime = jsonData[row][7] ? parseFloat(jsonData[row][7]) : null;
+                        steps.push({
+                            name: stepName,
+                            time: isNaN(stepTime) ? null : stepTime
+                        });
+                    } else {
+                        steps.push({ name: '', time: null });
+                    }
+                }
+                
+                // 计算总工时
+                const totalTime = steps.reduce((sum, s) => sum + (s.time || 0), 0);
+                
+                stations.push({
+                    sheet: sheetName,
+                    stationName: stationName,
+                    tt: tt,
+                    ct: ct || totalTime,
+                    stdHandheld: stdHandheld,
+                    steps: steps,
+                    totalTime: totalTime
+                });
+            });
+            
+            return { stations, productModel };
+        }
+        
+        function showPreview(data) {
+            const { stations } = data;
+            let html = '<table><thead><tr><th>工位</th><th>名称</th><th>TT</th><th>CT</th><th>手持</th><th>总工时</th><th>负荷率</th></tr></thead><tbody>';
+            
+            stations.forEach((s, i) => {
+                const loadRate = s.tt > 0 ? (s.totalTime / s.tt * 100).toFixed(1) : 0;
+                const loadColor = loadRate > 100 ? '#f44336' : loadRate > 90 ? '#ff9800' : '#4caf50';
+                html += `<tr>
+                    <td>OP${i + 1}</td>
+                    <td>${s.stationName.substring(0, 15)}</td>
+                    <td>${s.tt}</td>
+                    <td>${s.ct}</td>
+                    <td>${s.stdHandheld}</td>
+                    <td>${s.totalTime}</td>
+                    <td style="color:${loadColor};font-weight:bold">${loadRate}%</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('previewTable').innerHTML = html;
+            preview.classList.add('show');
+        }
+        
+        function showError(msg) {
+            result.className = 'result error';
+            document.getElementById('resultTitle').textContent = '❌ 错误';
+            document.getElementById('resultInfo').textContent = msg;
+            result.style.display = 'block';
+        }
+        
+        // 生成按钮
+        generateBtn.addEventListener('click', () => {
+            if (!parsedData) return;
+            
+            const config = {
+                workshop: document.getElementById('workshop').value,
+                lineName: document.getElementById('lineName').value,
+                productModel: document.getElementById('productModel').value || parsedData.productModel || '充电座',
+                author: document.getElementById('author').value,
+                taktTime: parseInt(document.getElementById('taktTime').value) || 33
+            };
+            
+            try {
+                const wb = generateEmployeeLoadTable(parsedData.stations, config);
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                
+                const fileName = `员工负荷表_${config.productModel}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                
+                document.getElementById('downloadLink').href = url;
+                document.getElementById('downloadLink').download = fileName;
+                document.getElementById('resultTitle').textContent = '✅ 生成成功!';
+                document.getElementById('resultInfo').innerHTML = `
+                    共 ${parsedData.stations.length} 个工位<br>
+                    文件名: ${fileName}
+                `;
+                result.className = 'result success';
+                result.style.display = 'block';
+                
+            } catch (err) {
+                console.error(err);
+                showError('生成失败: ' + err.message);
+            }
+        });
+        
+        function generateEmployeeLoadTable(stations, config) {
+            const wb = XLSX.utils.book_new();
+            const wsData = [];
+            
+            const numStations = stations.length;
+            const totalTimeAll = stations.reduce((sum, s) => sum + s.totalTime, 0);
+            const ttValue = config.taktTime;
+            const balanceRate = totalTimeAll / (numStations * ttValue);
+            
+            // Row 1: 标题
+            wsData.push([`${config.productModel}员工负荷表`]);
+            
+            // Row 2: 基本信息
+            wsData.push(['车间', config.workshop, '', '产品型号', config.productModel, '', '工序周期时间', totalTimeAll, '', '人数', numStations, '', '编制人', config.author]);
+            
+            // Row 3: 线体信息
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`;
+            wsData.push(['线体', config.lineName, '', '瓶颈时间', ttValue, '', '线平衡率', balanceRate.toFixed(4), '', '目标拉速(s)', ttValue, '', '编制时间', dateStr]);
+            
+            // Row 4: 空行
+            wsData.push([]);
+            
+            // Row 5: 工序行
+            const headerRow = ['工序'];
+            stations.forEach((s, i) => {
+                let name = s.stationName;
+                // 去掉OP前缀
+                if (name.startsWith('OP')) {
+                    let idx = 2;
+                    while (idx < name.length && /\d/.test(name[idx])) idx++;
+                    name = name.substring(idx);
+                }
+                headerRow.push(`ML${i + 1}${name}`);
+            });
+            wsData.push(headerRow);
+            
+            // Row 6-11: 步骤1-6名称
+            for (let stepIdx = 0; stepIdx < 6; stepIdx++) {
+                const row = [`步骤${stepIdx + 1}`];
+                stations.forEach(s => {
+                    const step = s.steps[stepIdx] || { name: '' };
+                    row.push(step.name || '');
+                });
+                wsData.push(row);
+            }
+            
+            // Row 12: 总工时
+            const totalRow = ['总工时'];
+            stations.forEach(s => totalRow.push(s.totalTime));
+            wsData.push(totalRow);
+            
+            // Row 13: 批量
+            const batchRow = ['批量'];
+            stations.forEach(() => batchRow.push(1));
+            wsData.push(batchRow);
+            
+            // Row 14: 目标节拍
+            const taktRow = ['目标节拍'];
+            stations.forEach(() => taktRow.push(ttValue));
+            wsData.push(taktRow);
+            
+            // Row 15: 工序号
+            const numRow = ['工序号'];
+            stations.forEach((_, i) => numRow.push(i + 1));
+            wsData.push(numRow);
+            
+            // Row 16-21: 步骤1-6工时
+            for (let stepIdx = 0; stepIdx < 6; stepIdx++) {
+                const row = [`步骤${stepIdx + 1}`];
+                stations.forEach(s => {
+                    const step = s.steps[stepIdx] || { time: null };
+                    row.push(step.time || '');
+                });
+                wsData.push(row);
+            }
+            
+            // Row 22: 空行
+            wsData.push([]);
+            
+            // Row 23: 备注
+            wsData.push(['※：为CTQ关键工序']);
+            
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // 设置列宽
+            ws['!cols'] = [{ wch: 12 }];
+            for (let i = 0; i < numStations; i++) {
+                ws['!cols'].push({ wch: 14 });
+            }
+            
+            XLSX.utils.book_append_sheet(wb, ws, '员工负荷表');
+            return wb;
+        }
+    </script>
+</body>
+</html>

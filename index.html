@@ -298,7 +298,13 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    console.log('Sheet数量:', workbook.SheetNames.length);
+                    console.log('Sheet名称:', workbook.SheetNames);
+                    
                     parsedData = parseWorkInstruction(workbook);
+                    
+                    console.log('解析结果:', parsedData);
                     
                     if (parsedData.stations.length > 0) {
                         generateBtn.disabled = false;
@@ -307,11 +313,11 @@
                             document.getElementById('productModel').value = parsedData.productModel;
                         }
                     } else {
-                        showError('未能识别到工位数据，请检查文件格式');
+                        showError('未能识别到工位数据，请检查文件格式。Sheet数量: ' + workbook.SheetNames.length);
                     }
                 } catch (err) {
-                    console.error(err);
-                    showError('文件解析失败: ' + err.message);
+                    console.error('解析错误:', err);
+                    showError('文件解析失败: ' + err.message + '。请查看浏览器控制台获取详细信息。');
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -321,22 +327,39 @@
             const stations = [];
             let productModel = '';
             
-            workbook.SheetNames.forEach((sheetName) => {
+            console.log('开始解析，Sheet数量:', workbook.SheetNames.length);
+            
+            workbook.SheetNames.forEach((sheetName, index) => {
                 const sheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
                 
-                if (jsonData.length < 10) return;
+                console.log(`Sheet ${index} (${sheetName}): 行数=${jsonData.length}`);
+                
+                if (jsonData.length < 10) {
+                    console.log(`  跳过: 行数不足`);
+                    return;
+                }
+                
+                // 打印关键行数据用于调试
+                if (index === 0) {
+                    console.log('  Row 2:', jsonData[2] ? jsonData[2].slice(0, 20) : 'N/A');
+                    console.log('  Row 4:', jsonData[4] ? jsonData[4].slice(0, 20) : 'N/A');
+                    console.log('  Row 7:', jsonData[7] ? jsonData[7].slice(0, 10) : 'N/A');
+                }
                 
                 // 提取TT (Row 2, Col 15)
                 let tt = 33;
                 if (jsonData[2] && jsonData[2][15]) {
-                    tt = parseInt(jsonData[2][15]) || 33;
+                    const ttVal = jsonData[2][15];
+                    tt = parseInt(ttVal) || 33;
+                    console.log(`  TT原始值: ${ttVal}, 解析: ${tt}`);
                 }
                 
                 // 提取标准手持数 (Row 4, Col 13)
                 let stdHandheld = 1;
                 if (jsonData[4] && jsonData[4][13]) {
-                    stdHandheld = parseInt(jsonData[4][13]) || 1;
+                    const stdVal = jsonData[4][13];
+                    stdHandheld = parseInt(stdVal) || 1;
                 }
                 
                 // 提取工位名称 (Row 2, Col 3)
@@ -369,6 +392,8 @@
                 // 计算总工时 = 该岗位所有步骤之和
                 const totalTime = steps.reduce((sum, s) => sum + (s.time || 0), 0);
                 
+                console.log(`  工位: ${stationName}, 总工时: ${totalTime}`);
+                
                 stations.push({
                     sheet: sheetName,
                     stationName: stationName,
@@ -388,6 +413,8 @@
             // 线平衡率 = 工序周期时间 / (瓶颈时间 × 人数)
             const numPeople = stations.length;
             const balanceRate = numPeople > 0 ? cycleTime / (bottleneckTime * numPeople) : 0;
+            
+            console.log('解析完成:', { stations: stations.length, cycleTime, bottleneckTime, balanceRate });
             
             return { stations, productModel, cycleTime, bottleneckTime, balanceRate };
         }

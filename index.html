@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>五表一书生成器 - 员工负荷表</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -14,7 +15,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             border-radius: 16px;
@@ -27,17 +28,10 @@
             padding: 30px;
             text-align: center;
         }
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        .content {
-            padding: 30px;
-        }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        
         .upload-area {
             border: 3px dashed #667eea;
             border-radius: 12px;
@@ -52,18 +46,9 @@
             background: #f0f2ff;
             transform: scale(1.02);
         }
-        .upload-area .icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .upload-area h3 {
-            color: #333;
-            margin-bottom: 8px;
-        }
-        .upload-area p {
-            color: #666;
-            font-size: 14px;
-        }
+        .upload-area .icon { font-size: 48px; margin-bottom: 16px; }
+        .upload-area h3 { color: #333; margin-bottom: 8px; }
+        .upload-area p { color: #666; font-size: 14px; }
         #fileInput { display: none; }
         
         .options {
@@ -72,36 +57,16 @@
             background: #f8f9ff;
             border-radius: 8px;
         }
-        .options h4 {
-            color: #333;
-            margin-bottom: 12px;
-        }
-        .form-row {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-        .form-group {
-            flex: 1;
-            min-width: 150px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            color: #555;
-            margin-bottom: 4px;
-        }
+        .options h4 { color: #333; margin-bottom: 12px; }
+        .form-row { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 150px; }
+        .form-group label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
         .form-group input, .form-group select {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 6px;
             font-size: 14px;
-        }
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
         }
         
         .btn {
@@ -117,15 +82,8 @@
             transition: all 0.3s;
             margin-top: 20px;
         }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         
         .result {
             margin-top: 24px;
@@ -134,21 +92,10 @@
             border-radius: 8px;
             display: none;
         }
-        .result.success { display: block; }
-        .result.error {
-            background: #ffebee;
-        }
-        .result h4 {
-            color: #2e7d32;
-            margin-bottom: 8px;
-        }
-        .result.error h4 {
-            color: #c62828;
-        }
-        .result .file-info {
-            font-size: 14px;
-            color: #555;
-        }
+        .result.show { display: block; }
+        .result.error { background: #ffebee; }
+        .result h4 { color: #2e7d32; margin-bottom: 8px; }
+        .result.error h4 { color: #c62828; }
         .result .download-btn {
             display: inline-block;
             margin-top: 12px;
@@ -160,38 +107,50 @@
             font-size: 14px;
         }
         
-        .preview {
-            margin-top: 24px;
-            display: none;
-        }
+        .preview { margin-top: 24px; display: none; }
         .preview.show { display: block; }
-        .preview h4 {
-            color: #333;
-            margin-bottom: 12px;
+        .preview h4 { color: #333; margin-bottom: 12px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
         }
-        .preview-table {
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 24px; font-weight: bold; }
+        .stat-card .label { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+        
+        .chart-container {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-container h4 { margin-bottom: 12px; color: #333; }
+        .chart-wrapper { position: relative; height: 300px; }
+        
+        .data-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
             overflow-x: auto;
             display: block;
         }
-        .preview-table table {
-            width: 100%;
-            min-width: 600px;
-        }
-        .preview-table th, .preview-table td {
+        .data-table table { width: 100%; min-width: 600px; }
+        .data-table th, .data-table td {
             border: 1px solid #ddd;
             padding: 6px 8px;
             text-align: center;
         }
-        .preview-table th {
-            background: #667eea;
-            color: white;
-        }
-        .preview-table tr:nth-child(even) {
-            background: #f8f9ff;
-        }
+        .data-table th { background: #667eea; color: white; }
+        .data-table tr:nth-child(even) { background: #f8f9ff; }
         
         .footer {
             text-align: center;
@@ -206,7 +165,7 @@
     <div class="container">
         <div class="header">
             <h1>📊 员工负荷表生成器</h1>
-            <p>上传作业指导书Excel，自动生成标准格式的员工负荷表</p>
+            <p>上传作业指导书Excel，自动生成员工负荷表（含山积图）</p>
         </div>
         
         <div class="content">
@@ -218,7 +177,7 @@
             </div>
             
             <div class="options">
-                <h4>⚙️ 配置信息（可选，自动识别）</h4>
+                <h4>⚙️ 配置信息（可选）</h4>
                 <div class="form-row">
                     <div class="form-group">
                         <label>车间名称</label>
@@ -238,10 +197,6 @@
                         <label>编制人</label>
                         <input type="text" id="author" value="邓豪">
                     </div>
-                    <div class="form-group">
-                        <label>目标节拍(秒)</label>
-                        <input type="number" id="taktTime" value="33">
-                    </div>
                 </div>
             </div>
             
@@ -249,24 +204,33 @@
             
             <div class="result" id="result">
                 <h4 id="resultTitle">✅ 生成成功!</h4>
-                <div class="file-info" id="resultInfo"></div>
+                <div id="resultInfo"></div>
                 <a class="download-btn" id="downloadLink" href="#" download>📥 下载员工负荷表</a>
             </div>
             
             <div class="preview" id="preview">
                 <h4>📋 数据预览</h4>
-                <div class="preview-table" id="previewTable"></div>
+                
+                <div class="stats-grid" id="statsGrid"></div>
+                
+                <div class="chart-container">
+                    <h4>📊 山积图（各工位工时累计）</h4>
+                    <div class="chart-wrapper">
+                        <canvas id="stackChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="data-table" id="dataTable"></div>
             </div>
         </div>
         
-        <div class="footer">
-            五表一书生成器 v1.0 | 部品分厂
-        </div>
+        <div class="footer">五表一书生成器 v2.0 | 部品分厂</div>
     </div>
 
     <script>
         let uploadedFile = null;
         let parsedData = null;
+        let chartInstance = null;
         
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
@@ -274,25 +238,14 @@
         const result = document.getElementById('result');
         const preview = document.getElementById('preview');
         
-        // 点击上传
         uploadArea.addEventListener('click', () => fileInput.click());
-        
-        // 拖拽上传
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) handleFile(files[0]);
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
         });
-        
-        // 文件选择
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) handleFile(e.target.files[0]);
         });
@@ -311,7 +264,6 @@
                 <p style="margin-top:8px;color:#667eea">点击重新选择</p>
             `;
             
-            // 解析文件
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
@@ -322,8 +274,6 @@
                     if (parsedData.stations.length > 0) {
                         generateBtn.disabled = false;
                         showPreview(parsedData);
-                        
-                        // 自动填充产品型号
                         if (parsedData.productModel && !document.getElementById('productModel').value) {
                             document.getElementById('productModel').value = parsedData.productModel;
                         }
@@ -342,7 +292,7 @@
             const stations = [];
             let productModel = '';
             
-            workbook.SheetNames.forEach((sheetName, index) => {
+            workbook.SheetNames.forEach((sheetName) => {
                 const sheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
                 
@@ -352,12 +302,6 @@
                 let tt = 33;
                 if (jsonData[2] && jsonData[2][15]) {
                     tt = parseInt(jsonData[2][15]) || 33;
-                }
-                
-                // 提取CT (Row 4, Col 15)
-                let ct = null;
-                if (jsonData[4] && jsonData[4][15]) {
-                    ct = parseInt(jsonData[4][15]) || null;
                 }
                 
                 // 提取标准手持数 (Row 4, Col 13)
@@ -393,54 +337,126 @@
                     }
                 }
                 
-                // 计算总工时
+                // 计算总工时 = 该岗位所有步骤之和
                 const totalTime = steps.reduce((sum, s) => sum + (s.time || 0), 0);
                 
                 stations.push({
                     sheet: sheetName,
                     stationName: stationName,
                     tt: tt,
-                    ct: ct || totalTime,
                     stdHandheld: stdHandheld,
                     steps: steps,
                     totalTime: totalTime
                 });
             });
             
-            return { stations, productModel };
+            // 工序周期时间 = 所有岗位工时之和
+            const cycleTime = stations.reduce((sum, s) => sum + s.totalTime, 0);
+            
+            // 瓶颈时间 = TT
+            const bottleneckTime = stations.length > 0 ? stations[0].tt : 33;
+            
+            // 线平衡率 = 工序周期时间 / (瓶颈时间 × 人数)
+            const numPeople = stations.length;
+            const balanceRate = numPeople > 0 ? cycleTime / (bottleneckTime * numPeople) : 0;
+            
+            return { stations, productModel, cycleTime, bottleneckTime, balanceRate };
         }
         
         function showPreview(data) {
-            const { stations } = data;
-            let html = '<table><thead><tr><th>工位</th><th>名称</th><th>TT</th><th>CT</th><th>手持</th><th>总工时</th><th>负荷率</th></tr></thead><tbody>';
+            const { stations, cycleTime, bottleneckTime, balanceRate } = data;
             
+            // 统计卡片
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card">
+                    <div class="value">${stations.length}</div>
+                    <div class="label">人数/工位数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">${cycleTime}s</div>
+                    <div class="label">工序周期时间</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">${bottleneckTime}s</div>
+                    <div class="label">瓶颈时间(TT)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">${(balanceRate * 100).toFixed(1)}%</div>
+                    <div class="label">线平衡率</div>
+                </div>
+            `;
+            
+            // 山积图
+            if (chartInstance) chartInstance.destroy();
+            const ctx = document.getElementById('stackChart').getContext('2d');
+            
+            const labels = stations.map((s, i) => `OP${i + 1}`);
+            const stepColors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a'];
+            
+            // 构建堆叠数据
+            const datasets = [];
+            for (let stepIdx = 0; stepIdx < 6; stepIdx++) {
+                const stepData = stations.map(s => {
+                    const step = s.steps[stepIdx] || { time: null };
+                    return step.time || 0;
+                });
+                if (stepData.some(v => v > 0)) {
+                    datasets.push({
+                        label: `步骤${stepIdx + 1}`,
+                        data: stepData,
+                        backgroundColor: stepColors[stepIdx],
+                        stack: 'stack0'
+                    });
+                }
+            }
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { 
+                            stacked: true,
+                            beginAtZero: true,
+                            title: { display: true, text: '工时(秒)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: false }
+                    }
+                }
+            });
+            
+            // 数据表格
+            let html = '<table><thead><tr><th>工位</th><th>名称</th><th>步骤1</th><th>步骤2</th><th>步骤3</th><th>总工时</th><th>负荷率</th></tr></thead><tbody>';
             stations.forEach((s, i) => {
-                const loadRate = s.tt > 0 ? (s.totalTime / s.tt * 100).toFixed(1) : 0;
+                const loadRate = bottleneckTime > 0 ? (s.totalTime / bottleneckTime * 100).toFixed(1) : 0;
                 const loadColor = loadRate > 100 ? '#f44336' : loadRate > 90 ? '#ff9800' : '#4caf50';
                 html += `<tr>
                     <td>OP${i + 1}</td>
-                    <td>${s.stationName.substring(0, 15)}</td>
-                    <td>${s.tt}</td>
-                    <td>${s.ct}</td>
-                    <td>${s.stdHandheld}</td>
-                    <td>${s.totalTime}</td>
+                    <td>${s.stationName.substring(0, 12)}</td>
+                    <td>${s.steps[0]?.time || '-'}</td>
+                    <td>${s.steps[1]?.time || '-'}</td>
+                    <td>${s.steps[2]?.time || '-'}</td>
+                    <td><b>${s.totalTime}</b></td>
                     <td style="color:${loadColor};font-weight:bold">${loadRate}%</td>
                 </tr>`;
             });
-            
             html += '</tbody></table>';
-            document.getElementById('previewTable').innerHTML = html;
+            document.getElementById('dataTable').innerHTML = html;
             preview.classList.add('show');
         }
         
         function showError(msg) {
-            result.className = 'result error';
+            result.className = 'result error show';
             document.getElementById('resultTitle').textContent = '❌ 错误';
             document.getElementById('resultInfo').textContent = msg;
-            result.style.display = 'block';
         }
         
-        // 生成按钮
         generateBtn.addEventListener('click', () => {
             if (!parsedData) return;
             
@@ -448,17 +464,14 @@
                 workshop: document.getElementById('workshop').value,
                 lineName: document.getElementById('lineName').value,
                 productModel: document.getElementById('productModel').value || parsedData.productModel || '充电座',
-                author: document.getElementById('author').value,
-                taktTime: parseInt(document.getElementById('taktTime').value) || 33
+                author: document.getElementById('author').value
             };
             
             try {
-                const wb = generateEmployeeLoadTable(parsedData.stations, config);
+                const wb = generateEmployeeLoadTable(parsedData, config);
                 const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                
                 const blob = new Blob([wbout], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
-                
                 const fileName = `员工负荷表_${config.productModel}_${new Date().toISOString().slice(0, 10)}.xlsx`;
                 
                 document.getElementById('downloadLink').href = url;
@@ -466,36 +479,32 @@
                 document.getElementById('resultTitle').textContent = '✅ 生成成功!';
                 document.getElementById('resultInfo').innerHTML = `
                     共 ${parsedData.stations.length} 个工位<br>
+                    工序周期时间: ${parsedData.cycleTime}秒 | 线平衡率: ${(parsedData.balanceRate * 100).toFixed(1)}%<br>
                     文件名: ${fileName}
                 `;
-                result.className = 'result success';
-                result.style.display = 'block';
-                
+                result.className = 'result show';
             } catch (err) {
                 console.error(err);
                 showError('生成失败: ' + err.message);
             }
         });
         
-        function generateEmployeeLoadTable(stations, config) {
+        function generateEmployeeLoadTable(data, config) {
+            const { stations, cycleTime, bottleneckTime, balanceRate } = data;
             const wb = XLSX.utils.book_new();
             const wsData = [];
-            
             const numStations = stations.length;
-            const totalTimeAll = stations.reduce((sum, s) => sum + s.totalTime, 0);
-            const ttValue = config.taktTime;
-            const balanceRate = totalTimeAll / (numStations * ttValue);
             
             // Row 1: 标题
             wsData.push([`${config.productModel}员工负荷表`]);
             
             // Row 2: 基本信息
-            wsData.push(['车间', config.workshop, '', '产品型号', config.productModel, '', '工序周期时间', totalTimeAll, '', '人数', numStations, '', '编制人', config.author]);
+            wsData.push(['车间', config.workshop, '', '产品型号', config.productModel, '', '工序周期时间', cycleTime, '', '人数', numStations, '', '编制人', config.author]);
             
             // Row 3: 线体信息
             const today = new Date();
             const dateStr = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`;
-            wsData.push(['线体', config.lineName, '', '瓶颈时间', ttValue, '', '线平衡率', balanceRate.toFixed(4), '', '目标拉速(s)', ttValue, '', '编制时间', dateStr]);
+            wsData.push(['线体', config.lineName, '', '瓶颈时间', bottleneckTime, '', '线平衡率', balanceRate.toFixed(4), '', '目标拉速(s)', bottleneckTime, '', '编制时间', dateStr]);
             
             // Row 4: 空行
             wsData.push([]);
@@ -504,7 +513,6 @@
             const headerRow = ['工序'];
             stations.forEach((s, i) => {
                 let name = s.stationName;
-                // 去掉OP前缀
                 if (name.startsWith('OP')) {
                     let idx = 2;
                     while (idx < name.length && /\d/.test(name[idx])) idx++;
@@ -536,7 +544,7 @@
             
             // Row 14: 目标节拍
             const taktRow = ['目标节拍'];
-            stations.forEach(() => taktRow.push(ttValue));
+            stations.forEach(() => taktRow.push(bottleneckTime));
             wsData.push(taktRow);
             
             // Row 15: 工序号
@@ -559,6 +567,18 @@
             
             // Row 23: 备注
             wsData.push(['※：为CTQ关键工序']);
+            
+            // 山积图数据区域（用于Excel图表）
+            wsData.push([]);
+            wsData.push(['山积图数据']);
+            const chartLabels = ['工位'];
+            const chartData = ['工时'];
+            stations.forEach((s, i) => {
+                chartLabels.push(`OP${i + 1}`);
+                chartData.push(s.totalTime);
+            });
+            wsData.push(chartLabels);
+            wsData.push(chartData);
             
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             

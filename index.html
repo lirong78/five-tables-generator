@@ -238,7 +238,12 @@
         const result = document.getElementById('result');
         const preview = document.getElementById('preview');
         
-        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('click', () => {
+            // 如果已经上传了文件，不重复触发
+            if (!uploadedFile) {
+                fileInput.click();
+            }
+        });
         uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
         uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
         uploadArea.addEventListener('drop', (e) => {
@@ -250,6 +255,26 @@
             if (e.target.files.length > 0) handleFile(e.target.files[0]);
         });
         
+        function resetUpload() {
+            uploadedFile = null;
+            parsedData = null;
+            generateBtn.disabled = true;
+            preview.classList.remove('show');
+            result.classList.remove('show');
+            
+            uploadArea.innerHTML = `
+                <div class="icon">📁</div>
+                <h3>点击或拖拽上传作业指导书</h3>
+                <p>支持 .xlsx 格式，每个Sheet代表一个工位</p>
+            `;
+            
+            // 重新绑定点击事件
+            uploadArea.onclick = () => fileInput.click();
+            
+            fileInput.value = '';
+            fileInput.click();
+        }
+        
         function handleFile(file) {
             if (!file.name.match(/\.xlsx?$/i)) {
                 showError('请上传Excel文件(.xlsx格式)');
@@ -257,11 +282,15 @@
             }
             
             uploadedFile = file;
+            
+            // 停止事件传播，防止再次触发
+            uploadArea.onclick = null;
+            
             uploadArea.innerHTML = `
                 <div class="icon">✅</div>
                 <h3>${file.name}</h3>
                 <p>文件大小: ${(file.size / 1024).toFixed(1)} KB</p>
-                <p style="margin-top:8px;color:#667eea">点击重新选择</p>
+                <p style="margin-top:8px;color:#667eea;cursor:pointer" onclick="resetUpload()">点击重新选择</p>
             `;
             
             const reader = new FileReader();
